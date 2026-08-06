@@ -1,0 +1,10 @@
+{
+  "name": "ratecalc-pro",
+  "version": "1.0.0",
+  "description": "Freelance Hourly Rate Calculator with Pro Paywall",
+  "main": "public/index.html",
+  "dependencies": {
+    "stripe": "^14.0.0"
+  }
+}
+
