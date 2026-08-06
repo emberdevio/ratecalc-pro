@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freelance Hourly Rate Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1', // Indigo 500
+                        primaryHover: '#4f46e5', // Indigo 600
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar and smooth transitions */
+        body { transition: background-color 0.3s, color 0.3s; }
+        .input-group input, .input-group select { transition: all 0.2s ease-in-out; }
+        
+        /* Hide export button and nav during PDF generation to keep clean */
+        .pdf-export-mode #export-btn,
+        .pdf-export-mode #theme-toggle,
+        .pdf-export-mode #nav-tabs {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 min-h-screen flex items-center justify-center p-4 antialiased">
+
+    <div id="app-container" class="max-w-4xl w-full bg-white dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors duration-300">
+        
+        <!-- Header -->
+        <div class="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
+                RateCalc Pro
+            </h1>
+            <div class="flex gap-4 items-center">
+                <!-- Currency Selector -->
+                <div class="relative">
+                    <select id="currency-select" class="appearance-none bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 py-2 pl-4 pr-8 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer transition">
+                        <option value="USD" data-symbol="$">USD ($)</option>
+                        <option value="EUR" data-symbol="€">EUR (€)</option>
+                        <option value="GBP" data-symbol="£">GBP (£)</option>
+                        <option value="CAD" data-symbol="C$">CAD (C$)</option>
+                        <option value="AUD" data-symbol="A$">AUD (A$)</option>
+                        <option value="INR" data-symbol="₹">INR (₹)</option>
+                        <option value="JPY" data-symbol="¥">JPY (¥)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500 dark:text-slate-400">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                </div>
+
+                <!-- Dark / Light Mode Toggle -->
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition" aria-label="Toggle Dark Mode">
+                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5 text-slate-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- App Navigation Tabs -->
+        <div id="nav-tabs" class="flex overflow-x-auto border-b border-slate-200 dark:border-slate-700 px-8 bg-slate-50/30 dark:bg-slate-800/30">
+            <button id="tab-btn-hourly" class="px-4 py-3 border-b-2 border-primary text-primary font-semibold text-sm whitespace-nowrap transition" onclick="switchTab('hourly')">
+                Hourly Rate
+            </button>
+            <button id="tab-btn-project" class="px-4 py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium text-sm flex items-center gap-1.5 whitespace-nowrap transition" onclick="switchTab('project')">
+                Project Pricing 
+                <svg class="pro-lock-icon w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+            </button>
+            <button id="tab-btn-retainer" class="px-4 py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium text-sm flex items-center gap-1.5 whitespace-nowrap transition" onclick="switchTab('retainer')">
+                Retainer Builder
+                <svg class="pro-lock-icon w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+            </button>
+        </div>
+
+        <!-- Main Content Wrapper -->
+        <div class="relative">
+            
+            <!-- Hourly Rate Calculator (Free Tier View) -->
+            <div id="view-hourly" class="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                <!-- Input Form -->
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-lg font-semibold mb-4 dark:text-white">Your Targets & Costs</h2>
+                        <div class="space-y-5">
+                            <div class="input-group">
+                                <label class="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Target Annual Salary (Net)</label>
+                                <div class="relative">
+                                    <span class="currency-symbol absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 font-medium">$</span>
+                                    <input type="number" id="target-salary" value="75000" class="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:text-white transition" placeholder="75000">
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">What you want to take home after taxes & overhead.</p>
+                            </div>
+
+                            <div class="input-group">
+                                <label class="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Monthly Overhead Costs</label>
+                                <div class="relative">
+                                    <span class="currency-symbol absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 font-medium">$</span>
+                                    <input type="number" id="monthly-overhead" value="500" class="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:text-white transition" placeholder="500">
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">Software, internet, insurance, workspace, etc.</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="input-group">
+                                    <label class="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Billable Hrs / Wk</label>
+                                    <input type="number" id="billable-hours" value="25" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:text-white transition" placeholder="25">
+                                </div>
+
+                                <div class="input-group">
+                                    <label class="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Tax Rate</label>
+                                    <div class="relative">
+                                        <input type="number" id="tax-rate" value="25" class="w-full pr-8 pl-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:text-white transition" placeholder="25">
+                                        <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculated Output Results -->
+                <div class="flex flex-col justify-between bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-lg font-semibold dark:text-white">Suggested Rates</h2>
+                            <span class="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold rounded-full">Updated</span>
+                        </div>
+                        
+                        <div class="mb-8 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-2">Minimum Hourly Rate</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-5xl font-extrabold text-primary" id="hourly-rate">$0</span>
+                                <span class="text-slate-500 dark:text-slate-400 font-medium">/ hr</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-6 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-2">Minimum Daily Rate</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-4xl font-bold text-slate-700 dark:text-slate-200" id="daily-rate">$0</span>
+                                <span class="text-slate-500 dark:text-slate-400 font-medium">/ day</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Based on standard 8-hour workday</p>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div class="flex justify-between items-center text-sm mb-3">
+                                <span class="text-slate-500 dark:text-slate-400">Gross Required (Annual)</span>
+                                <span class="font-semibold text-slate-800 dark:text-white" id="gross-annual">$0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm mb-3">
+                                <span class="text-slate-500 dark:text-slate-400">Total Billable Hours/Yr</span>
+                                <span class="font-semibold text-slate-800 dark:text-white" id="total-hours">0 hrs</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-500 dark:text-slate-400">Time Off (Vacation/Sick)</span>
+                                <span class="font-semibold text-slate-800 dark:text-white">4 weeks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="export-btn" class="mt-8 w-full py-4 bg-primary hover:bg-primaryHover text-white font-semibold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Export Summary to PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pro Paywall View -->
+            <div id="view-pro" class="hidden p-8 flex flex-col items-center justify-center text-center min-h-[500px] bg-slate-50/50 dark:bg-slate-900/50">
+                <div class="relative w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-orange-500/20 transform rotate-3">
+                    <div class="absolute inset-0 bg-white/20 rounded-2xl backdrop-blur-sm"></div>
+                    <svg class="w-10 h-10 text-white relative z-10" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
+                </div>
+                <h2 class="text-3xl font-extrabold mb-4 text-slate-800 dark:text-white tracking-tight">Unlock Pro Calculators</h2>
+                <p class="text-slate-600 dark:text-slate-400 max-w-lg mb-8 leading-relaxed">
+                    Take the guesswork out of complex pricing. Upgrade to access <strong class="font-semibold text-slate-800 dark:text-slate-200">Project-Based Pricing</strong>, <strong class="font-semibold text-slate-800 dark:text-slate-200">Monthly Retainers</strong>, and custom-branded PDF exports.
+                </p>
+                
+                <div class="flex flex-col items-center space-y-6 w-full max-w-sm">
+                    <!-- Stripe Checkout Button -->
+                    <button id="checkout-btn" class="w-full py-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-bold shadow-lg shadow-slate-900/20 dark:shadow-white/10 transition transform hover:-translate-y-1 flex items-center justify-center gap-3">
+                        <span>Get Lifetime Access</span>
+                        <span class="px-2 py-1 bg-white/20 dark:bg-slate-900/10 rounded-lg text-sm">$9.00</span>
+                    </button>
+                    
+                    <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        Secure one-time payment powered by Stripe
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="w-full flex items-center my-2">
+                        <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                        <span class="px-3 text-xs text-slate-400 font-medium">or restore purchase</span>
+                        <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                    </div>
+
+                    <!-- Restore Purchase Form -->
+                    <div class="w-full flex gap-2">
+                        <input type="email" id="restore-email" placeholder="Billing Email" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary outline-none dark:text-white text-sm">
+                        <button id="restore-btn" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-sm transition">Restore</button>
+                    </div>
+                    <p id="restore-message" class="text-xs hidden"></p>
+                </div>
+            </div>
+
+            <!-- Pro Content View (Hidden until unlocked) -->
+            <div id="pro-content-unlocked" class="hidden p-8 text-center min-h-[400px] flex flex-col justify-center items-center">
+                <div class="w-16 h-16 bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">Welcome to Pro! 🎉</h2>
+                <p class="text-slate-500 dark:text-slate-400 max-w-md">Your lifetime access is unlocked. You now have full access to Project Pricing & Retainer features.</p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DOM ELEMENTS ---
+        const targetSalaryInput = document.getElementById('target-salary');
+        const monthlyOverheadInput = document.getElementById('monthly-overhead');
+        const billableHoursInput = document.getElementById('billable-hours');
+        const taxRateInput = document.getElementById('tax-rate');
+        const currencySelect = document.getElementById('currency-select');
+        
+        const hourlyRateDisplay = document.getElementById('hourly-rate');
+        const dailyRateDisplay = document.getElementById('daily-rate');
+        const grossAnnualDisplay = document.getElementById('gross-annual');
+        const totalHoursDisplay = document.getElementById('total-hours');
+        const currencySymbols = document.querySelectorAll('.currency-symbol');
+
+        let currentSymbol = '$';
+
+        // --- CALCULATION LOGIC ---
+        function calculateRates() {
+            const targetSalary = parseFloat(targetSalaryInput.value) || 0;
+            const monthlyOverhead = parseFloat(monthlyOverheadInput.value) || 0;
+            const billableHours = parseFloat(billableHoursInput.value) || 0;
+            const taxRate = parseFloat(taxRateInput.value) || 0;
+
+            const WEEKS_PER_YEAR = 48; // Assuming 4 weeks off
+            const annualOverhead = monthlyOverhead * 12;
+            
+            const taxMultiplier = 1 - (taxRate / 100);
+            const grossRequired = taxMultiplier > 0 ? (targetSalary + annualOverhead) / taxMultiplier : 0;
+            
+            const totalBillableHours = billableHours * WEEKS_PER_YEAR;
+
+            let hourlyRate = 0;
+            let dailyRate = 0;
+
+            if (totalBillableHours > 0) {
+                hourlyRate = grossRequired / totalBillableHours;
+                dailyRate = hourlyRate * 8; 
+            }
+
+            hourlyRateDisplay.innerText = `${currentSymbol}${hourlyRate.toFixed(2)}`;
+            dailyRateDisplay.innerText = `${currentSymbol}${dailyRate.toFixed(2)}`;
+            grossAnnualDisplay.innerText = `${currentSymbol}${grossRequired.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
+            totalHoursDisplay.innerText = `${totalBillableHours.toLocaleString()} hrs`;
+        }
+
+        [targetSalaryInput, monthlyOverheadInput, billableHoursInput, taxRateInput].forEach(input => {
+            input.addEventListener('input', calculateRates);
+        });
+
+        currencySelect.addEventListener('change', (e) => {
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            currentSymbol = selectedOption.getAttribute('data-symbol');
+            
+            currencySymbols.forEach(el => {
+                el.innerText = currentSymbol;
+            });
+            
+            calculateRates();
+        });
+
+        calculateRates();
+
+        // --- TAB & PRO ACCESS LOGIC ---
+        const viewHourly = document.getElementById('view-hourly');
+        const viewPro = document.getElementById('view-pro');
+        const proContentUnlocked = document.getElementById('pro-content-unlocked');
+        let isProUnlocked = false;
+
+        const tabBtns = {
+            'hourly': document.getElementById('tab-btn-hourly'),
+            'project': document.getElementById('tab-btn-project'),
+            'retainer': document.getElementById('tab-btn-retainer')
+        };
+
+        window.switchTab = function(tabName) {
+            Object.values(tabBtns).forEach(btn => {
+                btn.classList.remove('border-primary', 'text-primary');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            const currentBtn = tabBtns[tabName];
+            currentBtn.classList.add('border-primary', 'text-primary');
+            currentBtn.classList.remove('border-transparent', 'text-slate-500');
+
+            if (tabName === 'hourly') {
+                viewHourly.classList.remove('hidden');
+                viewPro.classList.add('hidden');
+                proContentUnlocked.classList.add('hidden');
+            } else {
+                viewHourly.classList.add('hidden');
+                if (isProUnlocked) {
+                    viewPro.classList.add('hidden');
+                    proContentUnlocked.classList.remove('hidden');
+                } else {
+                    viewPro.classList.remove('hidden');
+                    proContentUnlocked.classList.add('hidden');
+                }
+            }
+        };
+
+        function unlockProFeatures() {
+            isProUnlocked = true;
+            localStorage.setItem('rateCalcProStatus', 'unlocked');
+            document.querySelectorAll('.pro-lock-icon').forEach(icon => icon.classList.add('hidden'));
+        }
+
+        // Check if user just paid via Stripe redirect
+        if (window.location.search.includes('success=true')) {
+            unlockProFeatures();
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // Check stored local status
+        if (localStorage.getItem('rateCalcProStatus') === 'unlocked') {
+            unlockProFeatures();
+        }
+
+        // --- STRIPE & RESTORE API HANDLERS ---
+        const checkoutBtn = document.getElementById('checkout-btn');
+        const restoreBtn = document.getElementById('restore-btn');
+        const restoreEmailInput = document.getElementById('restore-email');
+        const restoreMessage = document.getElementById('restore-message');
+
+        checkoutBtn.addEventListener('click', async () => {
+            checkoutBtn.innerText = "Connecting to Stripe...";
+            try {
+                const res = await fetch('/api/checkout', { method: 'POST' });
+                const data = await res.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.message || "Failed to initiate checkout.");
+                    checkoutBtn.innerText = "Get Lifetime Access";
+                }
+            } catch (e) {
+                alert("Network error. Please try again.");
+                checkoutBtn.innerText = "Get Lifetime Access";
+            }
+        });
+
+        restoreBtn.addEventListener('click', async () => {
+            const email = restoreEmailInput.value.trim();
+            if (!email) return alert("Please enter your billing email.");
+            
+            restoreBtn.innerText = "...";
+            restoreMessage.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+
+                restoreMessage.classList.remove('hidden');
+                if (data.proAccess) {
+                    restoreMessage.className = "text-xs text-green-500 font-medium mt-2";
+                    restoreMessage.innerText = data.message;
+                    unlockProFeatures();
+                    setTimeout(() => switchTab('project'), 1200);
+                } else {
+                    restoreMessage.className = "text-xs text-red-500 font-medium mt-2";
+                    restoreMessage.innerText = data.message || "No purchase found for this email.";
+                }
+            } catch (e) {
+                alert("Error checking purchase status.");
+            } finally {
+                restoreBtn.innerText = "Restore";
+            }
+        });
+
+        // --- DARK MODE LOGIC ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        function updateThemeIcons() {
+            if (document.documentElement.classList.contains('dark')) {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            } else {
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+            }
+        }
+
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        updateThemeIcons();
+
+        themeToggleBtn.addEventListener('click', function() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+            updateThemeIcons();
+        });
+
+        // --- PDF EXPORT ---
+        document.getElementById('export-btn').addEventListener('click', () => {
+            const element = document.getElementById('app-container');
+            element.classList.add('pdf-export-mode');
+            
+            const opt = {
+                margin:       0.5,
+                filename:     'Freelance_Rate_Summary.pdf',
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: document.documentElement.classList.contains('dark') ? '#1e293b' : '#ffffff' },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-export-mode');
+            });
+        });
+    </script>
+</body>
+</html>
+
